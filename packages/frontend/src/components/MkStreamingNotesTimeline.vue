@@ -401,8 +401,9 @@ if (store.s.realtimeMode) {
 }
 
 watch(() => [props.list, props.antenna, props.channel, props.role, props.withRenotes], () => {
+	disconnectChannel();
+	reloadTimeline();
 	if (store.s.realtimeMode) {
-		disconnectChannel();
 		connectChannel();
 	}
 });
