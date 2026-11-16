@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div ref="rootEl" :class="$style.root" class="_popup _shadow" :style="{ zIndex }" @contextmenu.prevent="() => {}">
+<div v-show="!choosingUser" ref="rootEl" :class="$style.root" class="_popup _shadow" :style="{ zIndex }" @contextmenu.prevent="() => {}">
 	<ol v-if="type === 'user'" ref="suggests" :class="$style.list">
 		<li v-for="user in users" tabindex="-1" :class="$style.item" @click="complete(type, user)" @keydown="onKeydown">
 			<img :class="$style.avatar" :src="user.avatarUrl"/>
@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts">
-import { markRaw, ref, useTemplateRef, computed, onUpdated, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { markRaw, ref, useTemplateRef, computed, onUpdated, onMounted, onBeforeUnmount, nextTick, watch, defineAsyncComponent } from 'vue';
 import * as Misskey from 'misskey-js';
 import sanitizeHtml from 'sanitize-html';
 import { emojilist, getEmojiName } from '@@/js/emojilist.js';
@@ -193,6 +193,7 @@ const items = ref<Element[] | HTMLCollection>([]);
 const mfmTags = ref<string[]>([]);
 const mfmParams = ref<string[]>([]);
 const select = ref(-1);
+const choosingUser = ref(false);
 const zIndex = os.claimZIndex('high');
 
 function completeMfmParam(param: string) {
@@ -312,6 +313,7 @@ function exec() {
 }
 
 function onMousedown(event: MouseEvent) {
+	if (choosingUser.value) return;
 	if (!elementContains(rootEl.value, event.target as Element) && (rootEl.value !== event.target)) props.close();
 }
 
@@ -393,10 +395,19 @@ function applySelect() {
 }
 
 function chooseUser() {
-	props.close();
-	os.selectUser({ includeSelf: true }).then(user => {
-		complete('user', user);
-		props.textarea.focus();
+	// close() するとこのポップアップが破棄され、選択結果の emit が親に届かない。
+	// ユーザー選択ダイアログは背面なので、開いている間だけサジェストを隠す。
+	choosingUser.value = true;
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkUserSelectDialog.vue')), {
+		includeSelf: true,
+	}, {
+		ok: (user) => {
+			complete('user', user);
+		},
+		closed: () => {
+			choosingUser.value = false;
+			dispose();
+		},
 	});
 }
 
