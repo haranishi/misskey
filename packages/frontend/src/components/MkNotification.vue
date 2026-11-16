@@ -403,6 +403,12 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 	display: flex;
 	align-items: baseline;
 	white-space: nowrap;
+
+	> :not(.headerTime) {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
 }
 
 .headerName {
